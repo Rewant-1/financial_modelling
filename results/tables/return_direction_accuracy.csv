@@ -1,0 +1,5 @@
+,model,n,direction_accuracy,p_vs_coinflip
+0,dmd,1691,0.5098,0.4223
+1,sindy_sr3,1691,0.5435,0.0004
+2,sindy_stlsq,1691,0.5435,0.0004
+3,var,1691,0.4932,0.5759

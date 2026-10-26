@@ -1,0 +1,8 @@
+,stylized_fact,value,interpretation
+0,fat tails (excess kurtosis of r),8.9,>> 0
+1,Jarque-Bera p-value,0.00e+00,normality rejected
+2,ACF |r| at lag 1 / 21,0.243 / 0.226,persistent vol clustering
+3,ACF r at lag 1,-0.053,returns ~unforecastable (EMH)
+4,"corr(r_t, sigma_{t+1}-sigma_t)",-0.098,negative: leverage effect
+5,"corr(sigma, vix)",0.882,related but distinct objects
+6,mean VIX - mean sigma (premium),0.00257,variance risk premium > 0

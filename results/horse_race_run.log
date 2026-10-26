@@ -1,0 +1,52 @@
+test window: 2020-01-02 -> 2026-10-23  (1712 days, 28 quarterly refit blocks)
+  block 1/28 (2020-01-02): 62 origins, 35.7s
+  block 2/28 (2020-04-01): 63 origins, 35.4s
+  block 3/28 (2020-07-01): 64 origins, 34.1s
+  block 4/28 (2020-10-01): 64 origins, 36.4s
+  block 5/28 (2021-01-04): 61 origins, 38.2s
+  block 6/28 (2021-04-01): 63 origins, 38.1s
+  block 7/28 (2021-07-01): 64 origins, 39.4s
+  block 8/28 (2021-10-01): 64 origins, 32.7s
+  block 9/28 (2022-01-03): 62 origins, 15.3s
+  block 10/28 (2022-04-01): 62 origins, 16.4s
+  block 11/28 (2022-07-01): 64 origins, 17.8s
+  block 12/28 (2022-10-03): 63 origins, 16.8s
+  block 13/28 (2023-01-03): 62 origins, 17.0s
+  block 14/28 (2023-04-03): 62 origins, 16.1s
+  block 15/28 (2023-07-03): 63 origins, 15.9s
+  block 16/28 (2023-10-02): 63 origins, 15.4s
+  block 17/28 (2024-01-02): 61 origins, 15.1s
+  block 18/28 (2024-04-01): 63 origins, 15.4s
+  block 19/28 (2024-07-01): 64 origins, 15.4s
+  block 20/28 (2024-10-01): 64 origins, 15.4s
+  block 21/28 (2025-01-02): 60 origins, 15.9s
+  block 22/28 (2025-04-01): 62 origins, 15.3s
+  block 23/28 (2025-07-01): 64 origins, 15.3s
+  block 24/28 (2025-10-01): 64 origins, 16.1s
+  block 25/28 (2026-01-02): 61 origins, 16.2s
+  block 26/28 (2026-04-01): 62 origins, 16.3s
+  block 27/28 (2026-07-01): 60 origins, 17.1s
+      model    n  direction_accuracy  p_vs_coinflip
+        dmd 1691              0.5098         0.4223
+  sindy_sr3 1691              0.5435         0.0004
+sindy_stlsq 1691              0.5435         0.0004
+        var 1691              0.4932         0.5759
+  figure -> results/figures/fig14_calibration_h1.png
+  figure -> results/figures/fig15_qlike_bars.png
+  figure -> results/figures/fig16_rolling_qlike_diff.png
+
+=== One-day-ahead results (sorted by QLIKE) ===
+        model    RMSE     MAE   QLIKE DM_vs_garch
+random_forest 0.00096 0.00012 0.00018    -8.28***
+      xgboost 0.00088 0.00019 0.00023    -8.50***
+          var 0.00078 0.00042 0.00228    -4.66***
+    lasso_lib 0.00080 0.00042 0.00231    -4.62***
+          dmd 0.00081 0.00042 0.00232    -4.55***
+    ridge_lib 0.00081 0.00042 0.00233    -4.52***
+    sindy_sr3 0.00083 0.00041 0.00236    -4.19***
+  sindy_stlsq 0.00083 0.00041 0.00236    -4.19***
+     ar_sigma 0.00081 0.00040 0.00240    -4.00***
+     naive_rw 0.00085 0.00040 0.00247    -3.69***
+    gjr_garch 0.00088 0.00051 0.00318    -4.68***
+      garch11 0.00089 0.00052 0.00328        +nan
+         ewma 0.00092 0.00053 0.00339    +2.99***

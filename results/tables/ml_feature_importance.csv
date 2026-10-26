@@ -1,0 +1,21 @@
+,model,kind,feature,importance
+13,random forest,raw feature,sig_t,0.9928146305825557
+2,lasso (library),library term,sig,0.9490583088892932
+21,xgboost,raw feature,sig_t,0.6660403609275818
+26,xgboost,raw feature,sig_lag1,0.23564772307872772
+27,xgboost,raw feature,vix_lag1,0.08531744033098221
+3,lasso (library),library term,vix,0.04113813205219614
+22,xgboost,raw feature,vix_t,0.008267059922218323
+18,random forest,raw feature,sig_lag1,0.007064689299181539
+6,lasso (library),library term,vix2,0.006422904546964332
+9,lasso (library),library term,sig_vix,0.0030376058449277004
+10,lasso (library),library term,r_absr,0.002891007582171056
+7,lasso (library),library term,r_sig,0.0022968890317280498
+24,xgboost,raw feature,r_t^2,0.0014846482081338763
+23,xgboost,raw feature,|r_t|,0.0012305111158639193
+4,lasso (library),library term,r2,0.0010851005974107145
+25,xgboost,raw feature,r_lag1,0.0010577398352324963
+20,xgboost,raw feature,r_t,0.0009544948115944862
+11,lasso (library),library term,sig_abssig,0.00014467018943789425
+19,random forest,raw feature,vix_lag1,0.00012068011826273016
+0,lasso (library),library term,1,0.0

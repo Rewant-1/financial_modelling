@@ -1,0 +1,19 @@
+# Pinned, well-aged versions (installed under the project venv, Python 3.12).
+# Pins are deliberate: see README "Environment notes" — on Windows machines
+# with Smart App Control / WDAC, brand-new wheel builds can be blocked.
+numpy==2.1.3
+scipy==1.14.1
+pandas==2.2.3
+scikit-learn==1.5.2
+statsmodels==0.14.4
+matplotlib==3.9.2
+pillow==10.4.0
+pyarrow==17.0.0
+arch==7.2.0
+xgboost==2.1.4
+yfinance==0.2.54
+
+# Optional (not required by the pipeline):
+# torch          # LSTM benchmark (guarded import; not implemented by default)
+# pysindy        # cross-check of the built-in STLSQ/SR3 implementation
+tabulate==0.9.0

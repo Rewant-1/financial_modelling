@@ -1,0 +1,244 @@
+lambda* = 0.0010
+discovered sigma equation: {'1': np.float64(-0.0082), 'r': np.float64(0.0084), 'sig': np.float64(0.9837), 'r2': np.float64(0.0063), 'r_absr': np.float64(-0.0058)}
+discovered r equation:     {}
+[PASS] STLSQ rediscovered the GARCH(1,1) sigma-equation structure
+[PASS] SR3 agrees on the core structure
+QMLE GARCH recovery: alpha=0.079 (true 0.08), beta=0.902 (true 0.9)
+[PASS] QMLE GARCH fallback recovers parameters
+ALL CHECKS PASSED — pipeline core is sound on known ground truth
+downloading S&P 500 (^GSPC) from Yahoo ...
+  9271 rows: 1990-01-02 -> 2026-10-23
+downloading VIX from CBOE (FRED fallback) ...
+  9301 rows via CBOE VIX_History.csv
+  [warn] DFF unavailable (could not fetch https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF&cosd=1990-01-01: Remote end closed connection without response) — optional, continuing
+  [warn] T10Y3M unavailable (could not fetch https://fred.stlouisfed.org/graph/fredgraph.csv?id=T10Y3M&cosd=1990-01-01: Remote end closed connection without response) — optional, continuing
+manifest -> data/manifest.json
+aligned 9267 trading days with both S&P and VIX (1990-01-02 -> 2026-10-23); dropped 0 rows with missing VIX
+                   series  type  ADF_stat  p_value  n_lags  crit_5pct stationary_5pct
+         daily log return level   -17.585      0.0      33     -2.862             yes
+       realized vol (21d) level    -8.189      0.0      35     -2.862             yes
+implied vol (daily units) level    -7.330      0.0      10     -2.862             yes
+     S&P close (contrast) level     3.902      1.0      37     -2.862              no
+
+master dataset: 9246 rows -> data/processed/master.parquet
+splits: {'train': 6528, 'val': 1006, 'test': 1712}
+  figure -> results/figures/fig01_price_vol_overlay.png
+  figure -> results/figures/fig02_return_histogram.png
+  figure -> results/figures/fig03_leverage_clustering.png
+  figure -> results/figures/fig04_sigma_vix.png
+                   stylized_fact         value                interpretation
+fat tails (excess kurtosis of r)           8.9                          >> 0
+             Jarque-Bera p-value      0.00e+00            normality rejected
+           ACF |r| at lag 1 / 21 0.243 / 0.226     persistent vol clustering
+                  ACF r at lag 1        -0.053 returns ~unforecastable (EMH)
+  corr(r_t, sigma_{t+1}-sigma_t)        -0.098     negative: leverage effect
+                corr(sigma, vix)         0.882  related but distinct objects
+ mean VIX - mean sigma (premium)       0.00257     variance risk premium > 0
+BDS tests (stat > 1.96 = reject independence at 5%) ...
+             series  embed_dim  BDS_stat       p_value             verdict
+        raw returns          2     18.01  1.600711e-72 reject independence
+        raw returns          3     25.55 5.068222e-144 reject independence
+     AR(5)-filtered          2     17.65  9.438568e-70 reject independence
+     AR(5)-filtered          3     25.29 3.827960e-141 reject independence
+GARCH(1,1)-filtered          2     -3.38  7.202705e-04 reject independence
+GARCH(1,1)-filtered          3     -1.72  8.486094e-02                   —
+variable  linear_map_RMSE  SINDy_RMSE  improvement_%  lambda_star
+       r           0.7155      0.7130            0.4        0.001
+   sigma           0.0948      0.0960           -1.3        0.001
+     vix           0.1874      0.1882           -0.5        0.001
+  figure -> results/figures/fig05_skill_gap.png
+
+BDS rejects independence on AR-filtered returns (p=9.4e-70); SINDy does not improve the one-step sigma map vs the best linear map (-1.3%). One-step point prediction is a linear-regime problem; nonlinear terms earn their keep in simulation and higher moments (see 09_dynamics).
+GARCH(1,1) on returns (train+val) ...
+  mu=0.00059 omega=1.588e-06 alpha=0.0967 beta=0.8894 persistence=0.9861
+GJR-GARCH(1,1) on returns (train+val) ...
+  alpha=0.0039 gamma=0.1590 beta=0.8961 persistence=0.9795
+             model   selection
+         AR(sigma) p = 6 (BIC)
+VAR(r, sigma, vix) p = 6 (BIC)
+GARCH coefficient tables -> results/tables/garch_params.md
+lambda* = 0.0010 (validation one-step RMSE minimum)
+  figure -> results/figures/fig06_sparsity_path.png
+
+=== Discovered system (STLSQ + significance pruning, standardized space) ===
+  r' = -0.0485*r_absr
+  sig' = -0.0080*1 +0.9542*sig +0.0370*vix
+  vix' = +0.0292*sig +0.9747*vix
+
+=== Same terms under SR3? ===
+  r' = -0.0485*r_absr
+  sig' = -0.0080*1 +0.9542*sig +0.0370*vix
+  vix' = +0.0292*sig +0.9747*vix
+
+=== SINDy sigma-equation vs GARCH analogues ===
+SINDy_term  SINDy_coef_std discovered           GARCH_analogue  GARCH_value
+         1         -0.0080        yes        omega (intercept)     0.000002
+        r2          0.0000         no alpha (shark shock term)     0.096727
+       sig          0.9542        yes        beta (vol memory)     0.889421
+    r_absr          0.0000         no    gamma (GJR asymmetry)     0.159049
+       vix          0.0370        yes      (no GARCH analogue)          NaN
+ensemble-SINDy at lambda*=0.0010, 500 block-bootstrap fits ...
+  figure -> results/figures/fig07_inclusion_heatmap.png
+      term  1990s  dot-com  GFC  2010s  COVID+  n_regimes_active
+       vix      1        1    1      1       1                 5
+       sig      1        1    1      1       1                 5
+         1      0        0    0      0       1                 1
+     r_sig      0        0    0      0       1                 1
+         r      0        0    0      0       0                 0
+        r2      0        0    0      0       0                 0
+      sig2      0        0    0      0       0                 0
+      vix2      0        0    0      0       0                 0
+     r_vix      0        0    0      0       0                 0
+   sig_vix      0        0    0      0       0                 0
+    r_absr      0        0    0      0       0                 0
+sig_abssig      0        0    0      0       0                 0
+  figure -> results/figures/fig08_regime_stability.png
+ noise_pct  n_terms_sig_eq  coef_1  coef_sig  coef_vix  coef_r2  coef_sig2  coef_r_absr
+         0               3 -0.0080    0.9542    0.0370   0.0000     0.0000          0.0
+         5               4 -0.0112    0.9435    0.0517   0.0000     0.0000          0.0
+        10               5 -0.0222    0.9145    0.0836   0.0000     0.0425          0.0
+        20               7 -0.0533    0.8258    0.1741   0.0047     0.1046          0.0
+  figure -> results/figures/fig09_noise_robustness.png
+      term  lasso_coef_h1  ridge_coef_h1  sindy_sig_eq
+         1        0.00000        0.00000       -0.0080
+         r        0.00000        0.00128        0.0000
+       sig        0.94906        0.94891        0.9542
+       vix        0.04114        0.04181        0.0370
+        r2        0.00109        0.00117        0.0000
+      sig2       -0.00000        0.00733        0.0000
+      vix2        0.00642        0.01294        0.0000
+     r_sig        0.00230        0.00186        0.0000
+     r_vix       -0.00000        0.00092        0.0000
+   sig_vix       -0.00304       -0.01525        0.0000
+    r_absr       -0.00289       -0.00341        0.0000
+sig_abssig       -0.00014       -0.00210        0.0000
+  figure -> results/figures/fig10_ml_feature_importance.png
+ML importance table + figure written
+discovered map at lambda*=0.0010: 5 active terms
+                         quantity                           value
+                    fixed point r                         0.00031
+        fixed point sigma (daily)                         0.00855
+fixed point sigma (annualized, %)                           13.6%
+          fixed point vix (daily)                         0.01205
+     max |eigenvalue| of Jacobian                          0.9792
+                          verdict locally stable (mean-reverting)
+  figure -> results/figures/fig11_phase_portrait.png
+  figure -> results/figures/fig12_eigenvalues.png
+        moment  simulated  actual (fit window)
+    kurtosis_r    8.67782              9.08662
+        skew_r   -0.26867             -0.27740
+ acf_absr_lag1    0.23396              0.25009
+ acf_absr_lag5    0.24004              0.32488
+acf_absr_lag21    0.00024              0.23373
+    sigma_mean    0.00945              0.00951
+     sigma_p95    0.01822              0.01950
+  figure -> results/figures/fig13_covid_replay.png
+test window: 2020-01-02 -> 2026-10-23  (1712 days, 28 quarterly refit blocks)
+  block 1/28 (2020-01-02): 62 origins, 33.8s
+  block 2/28 (2020-04-01): 63 origins, 35.9s
+  block 3/28 (2020-07-01): 64 origins, 34.3s
+  block 4/28 (2020-10-01): 64 origins, 33.7s
+  block 5/28 (2021-01-04): 61 origins, 35.1s
+  block 6/28 (2021-04-01): 63 origins, 35.1s
+  block 7/28 (2021-07-01): 64 origins, 35.3s
+  block 8/28 (2021-10-01): 64 origins, 35.5s
+  block 9/28 (2022-01-03): 62 origins, 35.2s
+  block 10/28 (2022-04-01): 62 origins, 36.4s
+  block 11/28 (2022-07-01): 64 origins, 36.5s
+  block 12/28 (2022-10-03): 63 origins, 36.4s
+  block 13/28 (2023-01-03): 62 origins, 37.7s
+  block 14/28 (2023-04-03): 62 origins, 37.9s
+  block 15/28 (2023-07-03): 63 origins, 38.3s
+  block 16/28 (2023-10-02): 63 origins, 38.7s
+  block 17/28 (2024-01-02): 61 origins, 39.8s
+  block 18/28 (2024-04-01): 63 origins, 40.7s
+  block 19/28 (2024-07-01): 64 origins, 41.5s
+  block 20/28 (2024-10-01): 64 origins, 41.4s
+  block 21/28 (2025-01-02): 60 origins, 39.5s
+  block 22/28 (2025-04-01): 62 origins, 42.2s
+  block 23/28 (2025-07-01): 64 origins, 41.3s
+  block 24/28 (2025-10-01): 64 origins, 43.8s
+  block 25/28 (2026-01-02): 61 origins, 43.9s
+  block 26/28 (2026-04-01): 62 origins, 44.8s
+  block 27/28 (2026-07-01): 60 origins, 42.8s
+      model    n  direction_accuracy  p_vs_coinflip
+        dmd 1691              0.5098         0.4223
+  sindy_sr3 1691              0.5435         0.0004
+sindy_stlsq 1691              0.5435         0.0004
+        var 1691              0.4932         0.5759
+  figure -> results/figures/fig14_calibration_h1.png
+  figure -> results/figures/fig15_qlike_bars.png
+  figure -> results/figures/fig16_rolling_qlike_diff.png
+
+=== One-day-ahead results (sorted by QLIKE) ===
+        model    RMSE     MAE   QLIKE DM_vs_garch
+random_forest 0.00096 0.00012 0.00018    -8.28***
+      xgboost 0.00088 0.00019 0.00023    -8.50***
+          var 0.00078 0.00042 0.00228    -4.66***
+    lasso_lib 0.00080 0.00042 0.00231    -4.62***
+          dmd 0.00081 0.00042 0.00232    -4.55***
+    ridge_lib 0.00081 0.00042 0.00233    -4.52***
+    sindy_sr3 0.00083 0.00041 0.00236    -4.19***
+  sindy_stlsq 0.00083 0.00041 0.00236    -4.19***
+     ar_sigma 0.00081 0.00040 0.00240    -4.00***
+     naive_rw 0.00085 0.00040 0.00247    -3.69***
+    gjr_garch 0.00088 0.00051 0.00318    -4.68***
+      garch11 0.00089 0.00052 0.00328        +nan
+         ewma 0.00092 0.00053 0.00339    +2.99***
+
+================================================================
+Phase 0: synthetic validation  [tests/test_sindy_recovers_garch.py]
+================================================================
+-- done in 16.4s
+
+================================================================
+Phase 1a: download raw data  [01_download.py]
+================================================================
+-- done in 302.7s
+
+================================================================
+Phase 1b: construct state dataset  [02_construct.py]
+================================================================
+-- done in 5.9s
+
+================================================================
+Phase 1c: exploratory analysis  [03_eda.py]
+================================================================
+-- done in 3.3s
+
+================================================================
+Phase 1.5: nonlinearity diagnostics  [04_diagnostics.py]
+================================================================
+-- done in 34.3s
+
+================================================================
+Phase 2: econometric baselines  [05_econometrics.py]
+================================================================
+-- done in 3.4s
+
+================================================================
+Phase 3: SINDy identification  [06_sindy.py]
+================================================================
+-- done in 3.0s
+
+================================================================
+Phase 4: robust identification  [07_ensemble.py]
+================================================================
+-- done in 14.4s
+
+================================================================
+Phase 5: ML baselines analysis  [08_ml.py]
+================================================================
+-- done in 34.5s
+
+================================================================
+Phase 7: dynamics & simulation  [09_dynamics.py]
+================================================================
+-- done in 226.3s
+
+================================================================
+Phase 6: forecasting horse race  [10_horse_race.py]
+================================================================
+-- done in 1044.7s
+
+Pipeline complete in 28.1 min. Outputs: results/figures, results/tables, results/forecasts

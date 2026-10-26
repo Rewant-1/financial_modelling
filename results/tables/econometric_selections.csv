@@ -1,0 +1,3 @@
+,model,selection
+0,AR(sigma),p = 6 (BIC)
+1,"VAR(r, sigma, vix)",p = 6 (BIC)
