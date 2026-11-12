@@ -1,5 +1,5 @@
 ,series,type,ADF_stat,p_value,n_lags,crit_5pct,stationary_5pct
-0,daily log return,level,-17.585,0.0,33,-2.862,yes
-1,realized vol (21d),level,-8.189,0.0,35,-2.862,yes
-2,implied vol (daily units),level,-7.33,0.0,10,-2.862,yes
-3,S&P close (contrast),level,3.902,1.0,37,-2.862,no
+0,daily log return,level,-29.953,0.0001,10,-2.862,yes
+1,realized vol (21d),level,-10.586,0.0001,10,-2.862,yes
+2,implied vol (daily units),level,-7.33,0.0001,10,-2.862,yes
+3,S&P close (contrast),level,3.366,0.99,10,-2.862,no

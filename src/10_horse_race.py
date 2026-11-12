@@ -53,11 +53,17 @@ def stars(p):
 
 def mz_regression(rv, f, lag):
     """Mincer-Zarnowitz: regress realized on forecast, HAC standard errors."""
-    import statsmodels.api as sm
-    X = sm.add_constant(f)
-    res = sm.OLS(rv, X).fit(cov_type="HAC", cov_kwds={"maxlags": lag})
-    return float(res.params[0]), float(res.pvalues[0]), float(res.params[1]), \
-        float(res.pvalues[1]), float(res.rsquared)
+    try:
+        import statsmodels.api as sm
+        X = sm.add_constant(f)
+        res = sm.OLS(rv, X).fit(cov_type="HAC", cov_kwds={"maxlags": lag})
+        return float(res.params[0]), float(res.pvalues[0]), float(res.params[1]), \
+            float(res.pvalues[1]), float(res.rsquared)
+    except Exception:
+        import sindy_core as sc
+        X = np.column_stack([np.ones(len(f)), f])
+        beta, se, tvalues, pvalues, r2 = sc._hac_ols(rv, X, maxlags=lag)
+        return float(beta[0]), float(pvalues[0]), float(beta[1]), float(pvalues[1]), float(r2)
 
 
 def main():
@@ -82,35 +88,41 @@ def main():
     zoo = build_zoo(df)
     recs = []
     r_recs = []
-    for b, block in enumerate(blocks):
-        start = int(block[0])
-        origins = np.array([t for t in block if t + max_h <= T - 1])
-        if len(origins) == 0:
-            continue
-        t_block = time.time()
-        for model in zoo:
-            try:
-                model.fit(start)
-                fc = model.sigma_forecasts(origins, HORIZONS)
-                for h in HORIZONS:
-                    for k, t in enumerate(origins):
-                        recs.append({"model": model.name,
-                                     "date": dates[t], "h": h,
-                                     "forecast": fc[h][k]})
-                if model.produces_r:
-                    rh = model.r_forecasts(origins)
-                    for k, t in enumerate(origins):
-                        r_recs.append({"model": model.name,
-                                       "date": dates[t],
-                                       "r_hat": rh[k], "r_actual": ret[t + 1]})
-            except Exception as e:
-                print(f"  [warn] {model.name} failed in block "
-                      f"{dates[start].date()}: {e}")
-        print(f"  block {b + 1}/{len(blocks)} ({dates[start].date()}): "
-              f"{len(origins)} origins, {time.time() - t_block:.1f}s")
+    reuse_fc = (os.environ.get("REUSE", "0") == "1" or "--reuse" in sys.argv) and (FORECASTS / "all_forecasts.csv").exists()
+    if reuse_fc:
+        print("reusing existing results/forecasts/all_forecasts.csv ...")
+        fc = pd.read_csv(FORECASTS / "all_forecasts.csv", parse_dates=["date"])
+    else:
+        for b, block in enumerate(blocks):
+            start = int(block[0])
+            origins = np.array([t for t in block if t + max_h <= T - 1])
+            if len(origins) == 0:
+                continue
+            t_block = time.time()
+            for model in zoo:
+                try:
+                    model.fit(start)
+                    fc = model.sigma_forecasts(origins, HORIZONS)
+                    for h in HORIZONS:
+                        for k, t in enumerate(origins):
+                            recs.append({"model": model.name,
+                                         "date": dates[t], "h": h,
+                                         "forecast": fc[h][k]})
+                    if model.produces_r:
+                        rh = model.r_forecasts(origins)
+                        for k, t in enumerate(origins):
+                            r_recs.append({"model": model.name,
+                                           "date": dates[t],
+                                           "r_hat": rh[k], "r_actual": ret[t + 1]})
+                except Exception as e:
+                    print(f"  [warn] {model.name} failed in block "
+                          f"{dates[start].date()}: {e}")
+            print(f"  block {b + 1}/{len(blocks)} ({dates[start].date()}): "
+                  f"{len(origins)} origins, {time.time() - t_block:.1f}s")
 
-    fc = pd.DataFrame(recs)
-    fc.to_csv(FORECASTS / "all_forecasts.csv", index=False)
+    if not reuse_fc:
+        fc = pd.DataFrame(recs)
+        fc.to_csv(FORECASTS / "all_forecasts.csv", index=False)
 
     # fold in STATA forecasts if the do-files were run
     stata_path = STATA_RESULTS / "stata_forecasts.csv"
@@ -135,9 +147,12 @@ def main():
     # ---- metrics per model x horizon ----
     rows = []
     for (mname, h), g in fc.groupby(["model", "h"]):
-        f = g["forecast"].to_numpy(float)
-        rv = g["realized"].to_numpy(float)
-        f = np.clip(f, 1e-8, None)
+        valid = np.isfinite(g["forecast"].to_numpy(float)) & np.isfinite(g["realized"].to_numpy(float))
+        if not np.any(valid):
+            continue
+        gv = g[valid]
+        f = np.clip(gv["forecast"].to_numpy(float), 1e-8, None)
+        rv = gv["realized"].to_numpy(float)
         lag = min(h + 20, len(f) // 5)
         mz = mz_regression(rv, f, lag)
         rows.append({
@@ -170,7 +185,10 @@ def main():
                 # align on common dates
                 g1 = fc[(fc["h"] == h) & (fc["model"] == mname)]
                 g2 = fc[(fc["h"] == h) & (fc["model"] == bench)]
-                j = g1.merge(g2, on="date", suffixes=("_a", "_b"))
+                j = g1.merge(g2, on="date", suffixes=("_a", "_b")).dropna(
+                    subset=["realized_a", "forecast_a", "realized_b", "forecast_b"])
+                if len(j) == 0:
+                    continue
                 la = (j["realized_a"] / np.clip(j["forecast_a"], 1e-8, None)
                       - np.log(j["realized_a"] / np.clip(j["forecast_a"], 1e-8, None)))
                 lb = (j["realized_b"] / np.clip(j["forecast_b"], 1e-8, None)
@@ -188,7 +206,7 @@ def main():
 
     main_tab = met[met["h"] == 1].sort_values("QLIKE").copy()
     main_tab["DM_vs_garch"] = [
-        f"{s:+.2f}{stars(p)}"
+        f"{s:+.2f}{stars(p)}" if np.isfinite(s) else "-"
         for s, p in zip(main_tab["DM_vs_garch11"], main_tab["DM_vs_garch11_p"])]
     save_table(main_tab[["model", "n", "RMSE", "MAE", "QLIKE", "MZ_slope",
                          "MZ_R2", "DM_vs_garch"]],

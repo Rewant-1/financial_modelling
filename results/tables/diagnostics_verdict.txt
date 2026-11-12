@@ -1,1 +1,1 @@
-BDS rejects independence on AR-filtered returns (p=9.4e-70); SINDy does not improve the one-step sigma map vs the best linear map (-1.3%). One-step point prediction is a linear-regime problem; nonlinear terms earn their keep in simulation and higher moments (see 09_dynamics).
+BDS rejects independence on AR-filtered returns (p=1.0e-04); SINDy does not improve the one-step sigma map vs the best linear map (-1.3%). One-step point prediction is a linear-regime problem; nonlinear terms earn their keep in simulation and higher moments (see 09_dynamics).

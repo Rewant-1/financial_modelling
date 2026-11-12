@@ -23,16 +23,15 @@ def http_get(url: str) -> bytes:
     Python's default TLS fingerprint)."""
     import time
     last = None
-    for attempt in range(3):
+    for attempt in range(1):
         try:
             req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=3) as resp:
                 return resp.read()
         except Exception as e:
             last = e
-            time.sleep(2 * (attempt + 1))
     import subprocess
-    r = subprocess.run(["curl", "-sL", "--max-time", "60", "-A", UA["User-Agent"], url],
+    r = subprocess.run(["curl", "-sL", "--max-time", "3", "-A", UA["User-Agent"], url],
                        capture_output=True)
     if r.returncode == 0 and r.stdout:
         return r.stdout
@@ -86,14 +85,23 @@ def main():
                 "sources": {}}
 
     print("downloading S&P 500 (^GSPC) from Yahoo ...")
+    spx = None
     try:
         spx = fetch_yahoo_daily("^GSPC", START_DATE, end)
     except Exception as e:
         print(f"  chart API failed ({e}); trying yfinance package ...")
-        import yfinance as yf
-        spx = yf.download("^GSPC", start=START_DATE, end=end,
-                          auto_adjust=True, progress=False)["Close"]
-        spx = spx.rename("close").to_frame()
+        try:
+            import yfinance as yf
+            spx = yf.download("^GSPC", start=START_DATE, end=end,
+                              auto_adjust=True, progress=False)["Close"]
+            spx = spx.rename("close").to_frame()
+        except Exception as e2:
+            print(f"  yfinance failed ({e2})")
+            if (RAW / "spx.csv").exists():
+                print("  [offline fallback] reusing existing data/raw/spx.csv")
+                spx = pd.read_csv(RAW / "spx.csv", parse_dates=["date"], index_col="date")
+            else:
+                raise
     spx.to_csv(RAW / "spx.csv")
     manifest["sources"]["spx"] = {
         "provider": "Yahoo Finance", "symbol": "^GSPC",
@@ -102,13 +110,23 @@ def main():
     print(f"  {len(spx)} rows: {spx.index.min().date()} -> {spx.index.max().date()}")
 
     print("downloading VIX from CBOE (FRED fallback) ...")
+    vix = None
     try:
         vix = fetch_cboe_vix()
         vix_src = "CBOE VIX_History.csv"
     except Exception as e:
         print(f"  CBOE failed ({e}); falling back to FRED VIXCLS ...")
-        vix = fetch_fred("VIXCLS", START_DATE)
-        vix_src = "FRED VIXCLS"
+        try:
+            vix = fetch_fred("VIXCLS", START_DATE)
+            vix_src = "FRED VIXCLS"
+        except Exception as e2:
+            print(f"  FRED failed ({e2})")
+            if (RAW / "vix.csv").exists():
+                print("  [offline fallback] reusing existing data/raw/vix.csv")
+                vix = pd.read_csv(RAW / "vix.csv", parse_dates=["date"], index_col="date")
+                vix_src = "Existing raw file (offline)"
+            else:
+                raise
     vix.to_csv(RAW / "vix.csv")
     manifest["sources"]["vix"] = {
         "provider": vix_src, "rows": len(vix),

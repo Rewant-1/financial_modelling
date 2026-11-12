@@ -1,5 +1,5 @@
 {
-  "downloaded_at": "2026-10-25T11:42:22.635654+00:00",
+  "downloaded_at": "2026-11-09T18:43:30.895584+00:00",
   "sources": {
     "spx": {
       "provider": "Yahoo Finance",
@@ -9,7 +9,7 @@
       "end": "2026-10-23"
     },
     "vix": {
-      "provider": "CBOE VIX_History.csv",
+      "provider": "Existing raw file (offline)",
       "rows": 9301,
       "start": "1990-01-02",
       "end": "2026-10-23"

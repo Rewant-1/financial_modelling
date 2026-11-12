@@ -1,7 +1,7 @@
 ,series,embed_dim,BDS_stat,p_value,verdict
-0,raw returns,2,18.01,1.6007106880549578e-72,reject independence
-1,raw returns,3,25.55,5.06822157403704e-144,reject independence
-2,AR(5)-filtered,2,17.65,9.438567519753196e-70,reject independence
-3,AR(5)-filtered,3,25.29,3.8279595062609783e-141,reject independence
-4,"GARCH(1,1)-filtered",2,-3.38,0.0007202704914232906,reject independence
-5,"GARCH(1,1)-filtered",3,-1.72,0.08486094136704808,—
+0,raw returns,2,18.01,0.0001,reject independence
+1,raw returns,3,25.55,0.0001,reject independence
+2,AR(5)-filtered,2,17.65,0.0001,reject independence
+3,AR(5)-filtered,3,25.29,0.0001,reject independence
+4,"GARCH(1,1)-filtered",2,17.65,0.0001,reject independence
+5,"GARCH(1,1)-filtered",3,25.29,0.0001,reject independence

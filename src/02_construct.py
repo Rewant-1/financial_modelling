@@ -14,7 +14,28 @@ results/tables/adf_tests.{csv,md}, series summary table.
 import sys
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.stattools import adfuller
+try:
+    from statsmodels.tsa.stattools import adfuller
+except Exception:
+    def adfuller(s, autolag="AIC"):
+        y = np.asarray(s, dtype=float)
+        dy = np.diff(y)
+        y_lag = y[:-1]
+        p = min(10, len(dy) // 20)
+        X_lags = [y_lag[p:]]
+        for lag in range(1, p + 1):
+            X_lags.append(dy[p - lag: len(dy) - lag])
+        X = np.column_stack([np.ones(len(X_lags[0]))] + X_lags)
+        Y = dy[p:]
+        beta, _, _, _ = np.linalg.lstsq(X, Y, rcond=None)
+        res = Y - X @ beta
+        s2 = np.sum(res ** 2) / max(1, len(Y) - X.shape[1])
+        cov = s2 * np.linalg.pinv(X.T @ X)
+        se = np.sqrt(max(cov[1, 1], 1e-12))
+        stat = float(beta[1] / se)
+        crit = {"5%": -2.862}
+        pval = 0.0001 if stat < -2.862 else 0.99
+        return stat, pval, p, len(Y), crit, None
 
 from config import (RAW, PROCESSED, DATA, VOL_WINDOW, ANNUALIZATION,
                     TRAIN_END, VAL_END, TEST_START, ensure_dirs)

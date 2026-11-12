@@ -74,6 +74,39 @@ def one_step_rmse(Theta: np.ndarray, X_next: np.ndarray, Xi: np.ndarray) -> np.n
     return np.sqrt(np.mean(err ** 2, axis=0))
 
 
+def _hac_ols(y: np.ndarray, X: np.ndarray, maxlags: int = 10):
+    """Fallback OLS with Newey-West (1987) HAC standard errors when statsmodels
+    is unavailable. Matches sm.OLS(y, X).fit(cov_type='HAC', cov_kwds={'maxlags': maxlags})."""
+    valid = np.isfinite(y) & np.all(np.isfinite(X), axis=1)
+    if not np.any(valid):
+        k = X.shape[1]
+        return np.zeros(k), np.zeros(k), np.zeros(k), np.ones(k), 0.0
+    y = y[valid]
+    X = X[valid]
+    T, k = X.shape
+    try:
+        beta, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
+    except Exception:
+        return np.zeros(k), np.zeros(k), np.zeros(k), np.ones(k), 0.0
+    e = y - X @ beta
+    XtX_inv = np.linalg.pinv(X.T @ X)
+    S = X * e[:, None]
+    Omega = S.T @ S
+    for l in range(1, min(maxlags, T - 1) + 1):
+        w = 1.0 - l / (maxlags + 1.0)
+        gamma = S[l:].T @ S[:-l]
+        Omega += w * (gamma + gamma.T)
+    V = XtX_inv @ Omega @ XtX_inv
+    se = np.sqrt(np.maximum(np.diag(V), 1e-18))
+    tvalues = beta / se
+    from scipy import stats as sps
+    pvalues = 2.0 * (1.0 - sps.norm.cdf(np.abs(tvalues)))
+    ss_tot = np.sum((y - y.mean()) ** 2)
+    ss_res = np.sum(e ** 2)
+    rsquared = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
+    return beta, se, tvalues, pvalues, rsquared
+
+
 def prune_significance(Xi, Theta, Y, tmin=2.5, hac=10):
     """Post-selection significance pruning: refit OLS on the active support of
     each equation with HAC standard errors and drop terms with |t| < tmin.
@@ -83,17 +116,22 @@ def prune_significance(Xi, Theta, Y, tmin=2.5, hac=10):
     so thresholding alone cannot separate them. A small coefficient on a REAL
     term comes with a large t-statistic; noise does not. This is the bridge
     to classical econometric practice ('which terms are significant?')."""
-    import statsmodels.api as sm
     out = np.zeros_like(Xi)
     for j in range(Y.shape[1]):
         idx = np.where(np.abs(Xi[:, j]) > 0)[0]
         if len(idx) == 0:
             continue
-        res = sm.OLS(Y[:, j], Theta[:, idx]).fit(
-            cov_type="HAC", cov_kwds={"maxlags": hac})
-        keep = np.abs(res.tvalues) >= tmin
-        if keep.any():
-            out[idx[keep], j] = res.params[keep]
+        try:
+            import statsmodels.api as sm
+            res = sm.OLS(Y[:, j], Theta[:, idx]).fit(
+                cov_type="HAC", cov_kwds={"maxlags": hac})
+            params = res.params
+            tvalues = res.tvalues
+        except Exception:
+            params, _, tvalues, _, _ = _hac_ols(Y[:, j], Theta[:, idx], maxlags=hac)
+        keep = np.abs(tvalues) >= tmin
+        if np.any(keep):
+            out[idx[keep], j] = params[keep]
     return out
 
 
@@ -142,6 +180,7 @@ def iterate_map(x0: np.ndarray, Xi: np.ndarray, h: int) -> np.ndarray:
     out = np.empty((h, Xi.shape[1]))
     x = x0.astype(float).copy()
     for k in range(h):
+        x = np.clip(x, -15.0, 15.0)
         theta = build_library(x[None, :])[0]
         x = theta @ Xi
         out[k] = x

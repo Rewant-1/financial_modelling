@@ -48,6 +48,8 @@ on data where the truth is known before anything touches real data.
 | `08_ml.py` | 5 | Ridge/Lasso/RF/XGBoost feature importances vs SINDy terms |
 | `09_dynamics.py` | 7 | fixed point, eigenvalues, phase portrait, simulated moments, COVID replay |
 | `10_horse_race.py` | 6 | walk-forward forecast race: RMSE/MAE/QLIKE, MZ, DM tests |
+| `11_varying_splits.py` | Robustness | multi-split validation: 6 regime splits, equation stability & forecast race |
+| `12_unsmoothed_vol.py` | Discovery | unsmoothed vol ($W \in [1, 2, 3, 5, 10, 21]$): GARCH $r^2$ shock and leverage recovery |
 
 ## Methodology notes (the decisions a referee will ask about)
 
@@ -127,13 +129,17 @@ can be installed to cross-check (optional).
 
 ## Results map (what to look at first)
 
-- `results/tables/horse_race_main.md` — the one-table answer to RQ3
+- `results/tables/horse_race_main.md` — the one-table answer to RQ3 (forecasting horse race)
+- `results/tables/varying_splits_term_summary.md` — multi-split stability across 6 regimes
+- `results/tables/varying_splits_sindy_vs_garch.md` — out-of-sample head-to-head across splits
+- `results/tables/unsmoothed_vs_smoothed_comparison.md` — recovery of GARCH r^2 shock across smoothing windows
 - `results/tables/sindy_equations_stlsq.md` — the discovered system
 - `results/tables/sindy_vs_garch.md` — term-by-term GARCH comparison
 - `results/tables/inclusion_probabilities.csv` — which terms are real (UQ)
 - `results/tables/regime_stability.md` — which terms survive 35 years
-- `results/figures/fig07_inclusion_heatmap.png`, `fig11_phase_portrait.png`,
-  `fig13_covid_replay.png` — the presentation centerpieces
+- `results/figures/fig17_split_equation_stability.png`, `fig18_split_forecast_comparison.png` — multi-split figures
+- `results/figures/fig19_unsmoothed_term_evolution.png`, `fig20_unsmoothed_forecast_bars.png` — unsmoothed volatility figures
+- `results/figures/fig07_inclusion_heatmap.png`, `fig11_phase_portrait.png`, `fig13_covid_replay.png` — the presentation centerpieces
 - `results/tables/return_direction_accuracy.md` — the EMH honesty report
 
 ## Known limitations (write these in the report, don't hide them)
@@ -144,11 +150,13 @@ can be installed to cross-check (optional).
    (HAVOK) is the natural extension.
 2. **Drift only.** Diffusion is resampled, not identified (Kramers–Moyal
    extension would close this).
-3. **r² channel below threshold.** Against the smoothed 21-day σ proxy, the
-   shock term does not survive 2.5-t pruning (ensemble inclusion ≈ 0);
-   the σ-equation is a persistence + VIX-coupling equation. GARCH's α
-   channel operates on conditional variance, a different (and faster)
-   object — discuss, don't bury.
+3. **r² channel under window smoothing.** Against the smoothed 21-day σ proxy,
+   the single-day shock term is diluted and pruned (ensemble inclusion ≈ 0);
+   the 21d σ-equation is a persistence + VIX-coupling equation. However, as
+   demonstrated in `12_unsmoothed_vol.py`, as the smoothing window W decreases
+   towards daily (W ≤ 5), dilution vanishes and SINDy recovers the discrete
+   GARCH shock: r² emerges at +0.0208 (W=5), +0.0567 (W=3), +0.1471 (W=2),
+   and +0.0675 (W=1).
 4. **Single market, daily frequency.** Cross-country systems and weekly
    aggregation are robustness extensions, not included.
 5. **STATA walk-forward not executed here** (no STATA in this environment);

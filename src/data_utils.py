@@ -45,11 +45,30 @@ def undo_zscore(Z, mu, sd):
     return Z * sd + mu
 
 
+def _df_to_markdown(df: pd.DataFrame, index: bool = True) -> str:
+    try:
+        return df.to_markdown(index=index)
+    except Exception:
+        cols = list(df.columns)
+        if index:
+            idx_name = df.index.name if df.index.name else ""
+            headers = [str(idx_name)] + [str(c) for c in cols]
+            rows = [[str(idx)] + [str(val) for val in row] for idx, row in zip(df.index, df.values)]
+        else:
+            headers = [str(c) for c in cols]
+            rows = [[str(val) for val in row] for row in df.values]
+        sep = ["---"] * len(headers)
+        lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join(sep) + " |"]
+        for r in rows:
+            lines.append("| " + " | ".join(r) + " |")
+        return "\n".join(lines) + "\n"
+
+
 def save_table(df: pd.DataFrame, name: str) -> None:
     """Write a results table as CSV plus a Markdown rendering for the report."""
     df.to_csv(TABLES / f"{name}.csv")
     with open(TABLES / f"{name}.md", "w", encoding="utf-8") as fh:
-        fh.write(df.to_markdown(index=bool(df.index.name)))
+        fh.write(_df_to_markdown(df, index=bool(df.index.name)))
 
 
 def save_fig(fig, name: str) -> None:

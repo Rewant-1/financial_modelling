@@ -24,6 +24,8 @@ STEPS = [
     ("08_ml.py", "Phase 5: ML baselines analysis"),
     ("09_dynamics.py", "Phase 7: dynamics & simulation"),
     ("10_horse_race.py", "Phase 6: forecasting horse race"),
+    ("11_varying_splits.py", "Phase 8: multi-split validation"),
+    ("12_unsmoothed_vol.py", "Phase 9: unsmoothed volatility analysis"),
 ]
 
 

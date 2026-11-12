@@ -169,7 +169,7 @@ class GARCHModel(BaseModel):
                     s2j = omega + pers * s2j
                 lo = t + h - self.W_LEN
                 real = r2[max(lo, 0): t + 1].sum()
-                fs.append(np.sqrt((real + fsum) / self.W_LEN))
+                fs.append(np.sqrt(max(0.0, real + fsum) / self.W_LEN))
             out[h] = np.clip(np.array(fs), 1e-8, None)
         return out
 
@@ -182,15 +182,47 @@ class VARModel(BaseModel):
 
     def fit(self, n_fit):
         super().fit(n_fit)
-        self.res = smVAR(self.X[:n_fit]).fit(maxlags=10, ic="bic")
-        self.p = self.res.k_ar
+        if HAS_SM:
+            self.res = smVAR(self.X[:n_fit]).fit(maxlags=10, ic="bic")
+            self.p = self.res.k_ar
+        else:
+            X_data = self.X[:n_fit]
+            best = (np.inf, 1, None)
+            for p in range(1, 11):
+                if len(X_data) <= p + 10:
+                    continue
+                Y = X_data[p:]
+                F = np.column_stack([np.ones(len(Y))] +
+                                    [X_data[p - 1 - i: len(X_data) - 1 - i] for i in range(p)])
+                B, *_ = np.linalg.lstsq(F, Y, rcond=None)
+                res = Y - F @ B
+                sigma_u = (res.T @ res) / len(Y)
+                sign, logdet = np.linalg.slogdet(sigma_u)
+                bic = logdet + (F.shape[1] * 3) * np.log(len(Y)) / len(Y)
+                if bic < best[0]:
+                    best = (bic, p, B)
+            self.p = best[1]
+            self.B = best[2]
+            self.res = None
         return self
 
     def _paths(self, origins, hmax):
         paths = np.empty((len(origins), hmax, 3))
-        for i, t in enumerate(origins):
-            f = self.res.forecast(self.X[t - self.p + 1: t + 1], hmax)
-            paths[i] = f
+        if HAS_SM and self.res is not None:
+            for i, t in enumerate(origins):
+                f = self.res.forecast(self.X[t - self.p + 1: t + 1], hmax)
+                paths[i] = f
+        else:
+            for i, t in enumerate(origins):
+                hist = list(self.X[t - self.p + 1: t + 1])
+                f = []
+                for _ in range(hmax):
+                    lags = np.array(hist[-self.p:][::-1]).reshape(-1)
+                    F_vec = np.concatenate([[1.0], lags])
+                    nxt = F_vec @ self.B
+                    f.append(nxt)
+                    hist.append(nxt)
+                paths[i] = np.array(f)
         return paths
 
     def sigma_forecasts(self, origins, horizons):
@@ -305,10 +337,13 @@ class DirectMLBase(BaseModel):
     def _features(self, Z, lag=0):
         if self.feature_kind == "library":
             return sc.build_library(Z)
+        if len(Z) == 0:
+            return np.empty((0, 8), dtype=float)
         r, s, v = Z[:, 0], Z[:, 1], Z[:, 2]
-        rL, sL, vL = np.roll(Z, 1, axis=0).T
-        F = np.column_stack([r, s, v, np.abs(r), r * r, rL, sL, vL])
-        return F[1:] if lag == 0 else F
+        rL = np.concatenate([[r[0]], r[:-1]])
+        sL = np.concatenate([[s[0]], s[:-1]])
+        vL = np.concatenate([[v[0]], v[:-1]])
+        return np.column_stack([r, s, v, np.abs(r), r * r, rL, sL, vL])
 
     def _make_model(self, alpha=None):
         raise NotImplementedError
